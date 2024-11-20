@@ -26,7 +26,7 @@ and if not, it raises the RequestException response
 def	fetch_data(url):
 	try:
 
-		data = requests.get(url, headers=HEADERS, timeout=0.001) 
+		data = requests.get(url, headers=HEADERS, timeout=3) 
 
 		data.raise_for_status()
 		return data.text
@@ -56,7 +56,7 @@ iter_content:
 '''
 def	saving_images(url, path):
 	try:
-		data = requests.get(url, stream=True, headers=HEADERS, timeout=0.001)
+		data = requests.get(url, stream=True, headers=HEADERS, timeout=3)
 		data.raise_for_status()
 		file_name = os.path.basename(urlparse(url).path)
 		full_path = os.path.join(path, file_name)
@@ -77,11 +77,11 @@ along with an optional credentials in form of username:password.
 we are still on the same website/domain
 '''
 def parse(url, path, level, visited_links=None):
-	print(f"parsing level: {level}")
 	if visited_links is None:
 		visited_links = set()
 	if level < 0 or url in visited_links:
 		return
+	print(f"parsing level: {level}")
 	visited_links.add(url)
 	data = fetch_data(url)
 	if not data:
@@ -121,6 +121,10 @@ def main():
 	#converts path to absolute path to help with libraries.  Some require absolute path
 	path = os.path.abspath(args.p)
 
+	if not recursive and depth != DEFAULT_DEPTH:
+		print("Error: The -l option can only be used with the -r flag.")
+		return
+		
 	if recursive:
 		parse(url, path, depth)
 	else:
@@ -129,7 +133,8 @@ def main():
 			return
 		images = extract_images(data, url)
 		os.makedirs(path, exist_ok=True)
-
+		for img in images:
+			saving_images(img, path)
 
 if __name__=="__main__":
 	main()
