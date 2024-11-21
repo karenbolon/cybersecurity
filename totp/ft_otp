@@ -1,0 +1,108 @@
+#!/usr/bin/python3
+#import os
+import sys
+import argparse
+#from hashlib import sha1
+import hmac
+import string
+import base64
+import requests
+from requests_oauthlib import OAuth1
+
+'''
+k is the key.  The server must share this key or the method for deriving 
+this key with the client
+
+c is an 8-byte counter value, it increments after each OTP generation.
+Therefore the counter must be sync'd with client and server
+
+Client: the HOTP generator
+Server: the HITP validator
+'''
+def	check_hex_character(key):
+	if len(key) != 64:
+	#checks if length is 64 and if the string represents hexidecimal characters
+		print("./ft_otp: error: key must be 64 hexadecimal characters.")
+		sys.exit(1)
+	if not all(c in string.hexdigits for c in key):
+		print("./ft_otp: error: key must contain only hexadecimal characters.")
+		sys.exit(1)
+		#sys.exit terminates the entire program and gives an exit code, return(1)
+		#is best used for functions in python
+
+def	make_encrypted_key(key):
+	try:
+		key_bytes = bytes.fromhex(key)
+		#converts 64-char hex string to 32 bytes binary format
+		counter = 0
+		counter_bytes = counter.to_bytes(8, byteorder='big')
+		#8 byte big endian
+		hs_hmac = hmac.new(key_bytes, counter_bytes, "sha1").hexdigest()
+		with open('ft_otp.key', 'w') as f:
+			f.write(hs_hmac)
+		print("HMAC successfully encrypted and stored in ft_otp.key")
+		print(hs_hmac)
+	except ValueError as e:
+		print(f"Error: Invalid Key {e}")
+	except Exception as e:
+		print(f"Error: {e} occurred")
+
+def	dynamic_truncation(hmac_key):
+	try:
+		with open(hmac_key, "r") as f:
+			hmac_hex = f.read().strip()
+		key_bytes = bytes.fromhex(hmac_hex)
+		if len(key_bytes) > 19:
+			byte_19 = key_bytes[19]
+#			byte_19_binary = bin(byte_19)
+			#converts to binary
+			last_4_bits = byte_19 & 0b1111
+			print(last_4_bits)#what is it printing in??? integer? 
+			return(last_4_bits)
+	except FileNotFoundError:
+		print(f"Error: File {hmac_key} not found.")
+		sys.exit(1)
+	except ValueError:
+		print(f"Error: Invalid HMAC format in file {hmac_key}")
+		sys.exit(1)
+	except Exception as e:
+		print(f"Error: {e}")
+		sys.exit(1)
+#	offset_bits = low_order_4_bits(hmac_key[19])
+#	offset = st_to_num(offset_bits)
+#	p = hmac_key[offset:offset + 4]
+#	return last_31_bits(p)
+
+
+def main():
+	# Initialize argparse to parse arguments in the terminal
+	parser = argparse.ArgumentParser(description="Generates new temporary passwords")
+	parser.add_argument("-g", type=str, help="Encrypts and stores key in ft_otp.key")
+	parser.add_argument("-k", type=str, help="Generate a new temporary password")
+	args = parser.parse_args()
+
+	if args.g:
+		key = args.g#.strip()
+		#removes any surrounding white space
+		check_hex_character(key)
+		make_encrypted_key(key)
+	elif args.k:
+		if args.k.endswith(".key"):
+			key = args.k
+			dynamic_truncation(key)
+			print("using key file")
+
+		else:
+			print("Error:  Please include *.key file")
+			sys.exit(1)
+
+		#load the key (open?)
+		#generate OTP
+	else:
+		print("Error: use -g or -k flags")
+		sys.exit(1)
+
+		
+
+if __name__=="__main__":
+	main()
